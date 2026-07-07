@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>京郊野趣 · 北京自然出行地图</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{--primary:#1a5f3f;--primary-light:#2d8a5e;--accent:#e8b951;--bg:#faf9f6;--card-bg:#fff;--text:#1a1a1a;--text-secondary:#666;--text-muted:#999;--border:#e8e4df;--shadow:0 2px 12px rgba(0,0,0,0.06);--shadow-lg:0 8px 32px rgba(0,0,0,0.1);--radius:12px;--radius-sm:6px}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Noto Sans SC','Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+
+/* Typography */
+.section-label{font-family:'Inter',sans-serif;font-size:0.7rem;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.5rem}
+.section-title{font-family:'Noto Serif SC',serif;font-size:clamp(1.8rem,4vw,2.8rem);font-weight:600;line-height:1.3;margin-bottom:1rem}
+.section-desc{font-size:1rem;color:var(--text-secondary);max-width:600px}
+
+/* Hero */
+.hero{position:relative;min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:2rem;overflow:hidden;background:linear-gradient(135deg,#1a3a2f 0%,#2d5a3f 50%,#1a3a2f 100%)}
+.hero::before{content:'';position:absolute;inset:0;background:url('https://picsum.photos/seed/beijing-mountain-hero/1920/1080') center/cover no-repeat;opacity:0.3}
+.hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 0%,rgba(26,58,47,0.8) 70%,rgba(26,58,47,1) 100%)}
+.hero-content{position:relative;z-index:2;color:white;max-width:800px}
+.hero-label{font-family:'Inter',sans-serif;font-size:0.75rem;font-weight:500;letter-spacing:0.3em;text-transform:uppercase;color:var(--accent);margin-bottom:1.5rem}
+.hero h1{font-family:'Noto Serif SC',serif;font-size:clamp(3rem,8vw,5.5rem);font-weight:700;margin-bottom:1rem;text-shadow:0 4px 30px rgba(0,0,0,0.3);letter-spacing:0.05em}
+.hero-subtitle{font-size:1.15rem;opacity:0.85;margin-bottom:0.5rem;font-weight:300}
+.hero-desc{font-size:0.95rem;opacity:0.6;margin-bottom:3rem}
+.hero-stats{display:flex;gap:3rem;justify-content:center;flex-wrap:wrap;margin-top:2rem}
+.hero-stat{text-align:center}
+.hero-stat-num{font-size:2.5rem;font-weight:700;font-family:'Noto Serif SC',serif}
+.hero-stat-label{font-size:0.8rem;opacity:0.6;letter-spacing:0.1em;text-transform:uppercase}
+.scroll-down{position:absolute;bottom:2.5rem;left:50%;transform:translateX(-50%);z-index:3;color:white;opacity:0.6;font-size:0.75rem;letter-spacing:0.1em;animation:bounce 2s infinite;text-transform:uppercase}
+.scroll-down::after{content:'⌄';display:block;font-size:1.5rem;margin-top:0.3rem}
+@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-8px)}}
+
+/* Nav */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;transition:all 0.3s}
+.nav.scrolled{background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);box-shadow:0 1px 10px rgba(0,0,0,0.05)}
+.nav.scrolled .nav-logo{color:var(--primary)}
+.nav-logo{font-family:'Noto Serif SC',serif;font-size:1.2rem;font-weight:600;color:white;text-decoration:none}
+.nav-links{display:flex;gap:1.5rem}
+.nav-links a{color:white;text-decoration:none;font-size:0.85rem;opacity:0.8;transition:opacity 0.2s}
+.nav-links a:hover{opacity:1}
+.nav.scrolled .nav-links a{color:var(--text)}
+
+/* Section */
+.section{padding:5rem 2rem;max-width:1200px;margin:0 auto}
+.section-header{text-align:center;margin-bottom:3rem}
+.section-header-left{text-align:left;margin-bottom:3rem}
+
+/* SVG Map */
+.svg-map-container{background:var(--card-bg);border-radius:var(--radius);padding:2rem;box-shadow:var(--shadow);margin-bottom:3rem}
+.svg-map{width:100%;max-width:500px;margin:0 auto;display:block}
+.map-zone{fill:#e8ede9;stroke:#c8d4cc;stroke-width:1.5;cursor:pointer;transition:all 0.3s}
+.map-zone:hover{fill:#d0ddd4}
+.map-zone.active{fill:var(--primary-light);stroke:var(--primary)}
+.map-zone-label{font-size:10px;fill:#5a7a6a;text-anchor:middle;pointer-events:none;font-weight:500}
+.map-center{fill:var(--primary);opacity:0.15}
+.map-center-label{font-size:11px;fill:var(--primary);text-anchor:middle;font-weight:600;pointer-events:none}
+
+/* Real Map */
+#realMap{height:500px;border-radius:var(--radius);box-shadow:var(--shadow);z-index:1}
+.map-legend{position:absolute;bottom:1rem;right:1rem;background:white;padding:0.75rem 1rem;border-radius:var(--radius-sm);box-shadow:var(--shadow);z-index:2;font-size:0.8rem}
+.map-legend-item{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem}
+.map-legend-dot{width:10px;height:10px;border-radius:50%}
+.map-wrapper{position:relative}
+
+/* Cards */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.5rem}
+@media(min-width:1024px){.card-grid{grid-template-columns:repeat(3,1fr)}}
+.card{background:var(--card-bg);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);transition:all 0.35s ease;cursor:pointer;border:1px solid var(--border)}
+.card:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg)}
+.card-img{position:relative;height:200px;overflow:hidden}
+.card-img img{width:100%;height:100%;object-fit:cover;transition:transform 0.6s ease}
+.card:hover .card-img img{transform:scale(1.06)}
+.card-img::after{content:'';position:absolute;bottom:0;left:0;right:0;height:60%;background:linear-gradient(0deg,rgba(0,0,0,0.5) 0%,transparent 100%)}
+.card-img-tags{position:absolute;bottom:0.75rem;left:0.75rem;display:flex;gap:0.4rem;z-index:2}
+.card-img-tag{padding:0.2rem 0.6rem;border-radius:50px;font-size:0.7rem;font-weight:500;color:white;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px)}
+.card-actions-top{position:absolute;top:0.75rem;right:0.75rem;display:flex;gap:0.4rem;z-index:2}
+.act-btn{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.9);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.9rem;transition:all 0.2s}
+.act-btn:hover{background:white;transform:scale(1.1)}
+.card-body{padding:1.25rem}
+.card-title{font-family:'Noto Serif SC',serif;font-size:1.15rem;font-weight:600;margin-bottom:0.3rem}
+.card-meta{font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem}
+.card-desc{font-size:0.85rem;color:var(--text-secondary);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:1rem}
+.card-footer{display:flex;justify-content:space-between;align-items:center;padding-top:0.75rem;border-top:1px solid var(--border)}
+.card-diff{font-size:0.75rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:50px}
+.card-dist{font-size:0.8rem;color:var(--text-muted)}
+
+/* Category pills */
+.cat-pills{display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:center;margin-top:1.5rem}
+.cat-pill{padding:0.5rem 1rem;border-radius:50px;border:1px solid var(--border);background:white;font-size:0.85rem;cursor:pointer;transition:all 0.2s;font-family:inherit}
+.cat-pill:hover{border-color:var(--primary);color:var(--primary)}
+.cat-pill.active{background:var(--primary);color:white;border-color:var(--primary)}
+
+/* Season cards */
+.season-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem}
+@media(min-width:768px){.season-grid{grid-template-columns:repeat(4,1fr)}}
+.season-card{position:relative;height:280px;border-radius:var(--radius);overflow:hidden;cursor:pointer}
+.season-card img{width:100%;height:100%;object-fit:cover;transition:transform 0.5s ease}
+.season-card:hover img{transform:scale(1.05)}
+.season-card::after{content:'';position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,0.6) 0%,rgba(0,0,0,0.1) 60%,transparent 100%)}
+.season-card-content{position:absolute;bottom:0;left:0;right:0;padding:1.5rem;color:white;z-index:2}
+.season-card-label{font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;opacity:0.8;margin-bottom:0.3rem}
+.season-card-title{font-family:'Noto Serif SC',serif;font-size:1.3rem;font-weight:600}
+
+/* Detail Panel */
+.detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:300;opacity:0;pointer-events:none;transition:opacity 0.3s}
+.detail-overlay.open{opacity:1;pointer-events:auto}
+.detail-panel{position:fixed;top:0;right:0;width:100%;max-width:640px;height:100vh;background:var(--bg);z-index:301;transform:translateX(100%);transition:transform 0.4s cubic-bezier(0.4,0,0.2,1);overflow-y:auto;box-shadow:-8px 0 40px rgba(0,0,0,0.15)}
+.detail-panel.open{transform:translateX(0)}
+.detail-header{position:relative;height:260px;overflow:hidden}
+.detail-header img{width:100%;height:100%;object-fit:cover}
+.detail-header::after{content:'';position:absolute;inset:0;background:linear-gradient(0deg,rgba(26,58,47,0.85) 0%,rgba(26,58,47,0.3) 60%,transparent 100%)}
+.detail-close{position:absolute;top:1rem;right:1rem;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.95);border:none;cursor:pointer;z-index:3;font-size:1rem;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+.detail-header-content{position:absolute;bottom:0;left:0;right:0;padding:1.5rem;color:white;z-index:2}
+.detail-header-content h2{font-family:'Noto Serif SC',serif;font-size:1.8rem;font-weight:600;margin-bottom:0.3rem}
+.detail-body{padding:1.5rem}
+.detail-tabs{display:flex;gap:0.5rem;border-bottom:1px solid var(--border);margin-bottom:1.5rem;overflow-x:auto;scrollbar-width:none}
+.detail-tabs::-webkit-scrollbar{display:none}
+.detail-tab{padding:0.6rem 0.9rem;font-size:0.85rem;font-weight:500;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:all 0.2s}
+.detail-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.detail-tab:hover{color:var(--primary)}
+.detail-section{display:none}
+.detail-section.active{display:block;animation:fadeIn 0.3s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;margin-bottom:1.25rem}
+.info-cell{background:white;border-radius:var(--radius-sm);padding:0.9rem;border:1px solid var(--border)}
+.info-cell-label{font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.2rem}
+.info-cell-value{font-size:0.95rem;font-weight:600;color:var(--text)}
+.info-block{background:white;border-radius:var(--radius-sm);padding:1rem;border-left:3px solid var(--primary-light);margin-bottom:0.75rem}
+.info-block-title{font-weight:600;font-size:0.9rem;margin-bottom:0.3rem}
+.info-block-text{font-size:0.85rem;color:var(--text-secondary);line-height:1.6}
+.info-block-tips{font-size:0.8rem;color:#b8860b;margin-top:0.4rem;padding:0.5rem;background:#fef9e7;border-radius:var(--radius-sm)}
+.warn-box{background:#fff5f5;border:1px solid #fed7d7;border-radius:var(--radius-sm);padding:1rem;margin-top:0.75rem}
+.warn-title{color:#c53030;font-weight:600;font-size:0.9rem;margin-bottom:0.4rem}
+.warn-item{font-size:0.83rem;color:#742a2a;margin-bottom:0.2rem}
+.action-row{display:flex;gap:0.6rem;margin-bottom:1.25rem}
+.action-row button{flex:1;padding:0.6rem;border-radius:var(--radius-sm);border:1px solid var(--border);background:white;font-family:inherit;font-size:0.85rem;font-weight:500;cursor:pointer;transition:all 0.2s}
+.action-row button:hover{border-color:var(--primary)}
+.action-row button.on{background:var(--primary);color:white;border-color:var(--primary)}
+.action-row button.wish-on{background:var(--accent);color:var(--text);border-color:var(--accent)}
+
+/* Leaflet custom */
+.leaflet-popup-content-wrapper{border-radius:var(--radius)!important;padding:0!important;overflow:hidden}
+.leaflet-popup-content{margin:0!important;padding:0!important}
+.popup-card{padding:0.75rem;min-width:180px}
+.popup-title{font-weight:600;font-size:0.95rem;margin-bottom:0.2rem}
+.popup-meta{font-size:0.75rem;color:var(--text-muted);margin-bottom:0.4rem}
+.popup-link{color:var(--primary-light);font-size:0.8rem;cursor:pointer;text-decoration:none}
+.popup-link:hover{text-decoration:underline}
+
+/* Loading */
+.loading{text-align:center;padding:5rem;color:var(--text-muted)}
+.loading-spin{display:inline-block;width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:0.75rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Misc */
+.btn-outline{padding:0.5rem 1.2rem;border:1px solid var(--border);background:white;border-radius:50px;font-size:0.85rem;cursor:pointer;transition:all 0.2s;font-family:inherit}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.text-center{text-align:center}
+.mt-2{margin-top:2rem}
+.mt-3{margin-top:3rem}
+.mb-1{margin-bottom:1rem}
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+
+<nav class="nav" id="mainNav">
+  <a href="#" class="nav-logo">京郊野趣</a>
+  <div class="nav-links">
+    <a href="#interactive-map">交互地图</a>
+    <a href="#real-map">真实地图</a>
+    <a href="#destinations">目的地</a>
+    <a href="#seasons">四季指南</a>
+  </div>
+</nav>
+
+
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-label">YOUR BEIJING OUTDOOR GUIDE</div>
+    <h1>京郊野趣</h1>
+    <p class="hero-subtitle">探索北京周边的自然宝藏</p>
+    <p class="hero-desc">一张会生长的地图 · 山、水、峡谷、草原、长城与古村</p>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="hero-stat-num">45</div><div class="hero-stat-label">个景点</div></div>
+      <div class="hero-stat"><div class="hero-stat-num">8</div><div class="hero-stat-label">种类型</div></div>
+      <div class="hero-stat"><div class="hero-stat-num">6</div><div class="hero-stat-label">个方位</div></div>
+    </div>
+  </div>
+  <div class="scroll-down">向下滚动</div>
+</section>
+
+
+<section class="section mt-3" id="interactive-map">
+  <div class="section-header">
+    <div class="section-label">INTERACTIVE MAP</div>
+    <h2 class="section-title">北京自然出行地图</h2>
+    <p class="section-desc">北京周边的自然资源按方位分布。点击不同的方向区域，探索那里的山脉、水库、峡谷与草原。这张地图会随着你的足迹不断生长。</p>
+  </div>
+  <div class="svg-map-container">
+    <svg class="svg-map" viewBox="0 0 400 400">
+      <!-- Background -->
+      <rect width="400" height="400" fill="#f5f7f5" rx="12"/>
+      <!-- Center circle (Beijing) -->
+      <circle cx="200" cy="200" r="25" class="map-center"/>
+      <text x="200" y="204" class="map-center-label">北京市区</text>
+      <!-- Zone paths -->
+      <path id="zone-northwest" d="M200,200 L60,60 L200,20 Z" class="map-zone" onclick="filterByZone('northwest')"/>
+      <path id="zone-north" d="M200,200 L200,20 L340,60 Z" class="map-zone" onclick="filterByZone('north')"/>
+      <path id="zone-northeast" d="M200,200 L340,60 L380,200 Z" class="map-zone" onclick="filterByZone('northeast')"/>
+      <path id="zone-west" d="M200,200 L20,200 L60,60 Z" class="map-zone" onclick="filterByZone('west')"/>
+      <path id="zone-southwest" d="M200,200 L60,340 L20,200 Z" class="map-zone" onclick="filterByZone('southwest')"/>
+      <path id="zone-suburban" d="M200,200 L340,340 L380,200 Z" class="map-zone" onclick="filterByZone('suburban')"/>
+      <!-- Labels -->
+      <text x="130" y="90" class="map-zone-label">西北 · 延庆</text>
+      <text x="270" y="90" class="map-zone-label">正北 · 怀柔</text>
+      <text x="330" y="180" class="map-zone-label">东北 · 平谷</text>
+      <text x="70" y="180" class="map-zone-label">西 · 门头沟</text>
+      <text x="90" y="290" class="map-zone-label">西南 · 房山</text>
+      <text x="300" y="290" class="map-zone-label">近郊</text>
+    </svg>
+    <div class="text-center mt-2">
+      <button class="btn-outline" onclick="clearZoneFilter()">查看全部方位</button>
+    </div>
+  </div>
+</section>
+
+
+<section class="section" id="real-map">
+  <div class="section-header-left">
+    <div class="section-label">REAL MAP</div>
+    <h2 class="section-title">真实地图</h2>
+    <p class="section-desc">在地图上探索北京周边的自然资源，点击标记查看详情</p>
+  </div>
+  <div class="map-wrapper">
+    <div id="realMap"></div>
+    <div class="map-legend">
+      <div style="font-weight:600;font-size:0.8rem;margin-bottom:0.5rem">资源类型</div>
+      <div class="map-legend-item"><div class="map-legend-dot" style="background:#667eea"></div>山脉</div>
+      <div class="map-legend-item"><div class="map-legend-dot" style="background:#2193b0"></div>水库</div>
+      <div class="map-legend-item"><div class="map-legend-dot" style="background:#f5576c"></div>峡谷</div>
+      <div class="map-legend-item"><div class="map-legend-dot" style="background:#56ab2f"></div>草甸</div>
+      <div class="map-legend-item"><div class="map-legend-dot" style="background:#11998e"></div>森林</div>
+      <div class="map-legend-item"><div class="map-legend-dot" style="background:#fc4a1a"></div>长城</div>
+      <div class="map-legend-item"><div class="map-legend-dot" style="background:#e65c00"></div>古村</div>
+      <div class="map-legend-item"><div class="map-legend-dot" style="background:#4b5563"></div>溶洞</div>
+    </div>
+  </div>
+</section>
+
+
+<section class="section" id="destinations">
+  <div class="section-header-left">
+    <div class="section-label">FEATURED DESTINATIONS</div>
+    <h2 class="section-title">精选目的地</h2>
+  </div>
+  <div class="loading" id="destLoading"><div class="loading-spin"></div><div>加载中...</div></div>
+  <div class="card-grid hidden" id="destGrid"></div>
+  <div class="text-center mt-2">
+    <div class="cat-pills" id="catPills"></div>
+  </div>
+</section>
+
+
+<section class="section" id="seasons">
+  <div class="section-header">
+    <div class="section-label">SEASONAL GUIDE</div>
+    <h2 class="section-title">四季皆宜的京郊</h2>
+    <p class="section-desc">春花、夏草、秋叶、冬雪 — 每个季节都有独特的山野体验</p>
+  </div>
+  <div class="season-grid">
+    <div class="season-card">
+      <img src="https://picsum.photos/seed/spring-beijing/400/300" alt="春">
+      <div class="season-card-content">
+        <div class="season-card-label">SPRING</div>
+        <div class="season-card-title">春花烂漫</div>
+      </div>
+    </div>
+    <div class="season-card">
+      <img src="https://picsum.photos/seed/summer-beijing/400/300" alt="夏">
+      <div class="season-card-content">
+        <div class="season-card-label">SUMMER</div>
+        <div class="season-card-title">夏日清凉</div>
+      </div>
+    </div>
+    <div class="season-card">
+      <img src="https://picsum.photos/seed/autumn-beijing/400/300" alt="秋">
+      <div class="season-card-content">
+        <div class="season-card-label">AUTUMN</div>
+        <div class="season-card-title">秋叶如火</div>
+      </div>
+    </div>
+    <div class="season-card">
+      <img src="https://picsum.photos/seed/winter-beijing/400/300" alt="冬">
+      <div class="season-card-content">
+        <div class="season-card-label">WINTER</div>
+        <div class="season-card-title">冬雪皑皑</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<div class="detail-overlay" id="dOv" onclick="closeD()"></div>
+<div class="detail-panel" id="dPa"><div id="dCo"></div></div>
+
+<script>
+const ZN={west:'西 · 门头沟',northwest:'西北 · 延庆',north:'正北 · 怀柔/密云',southwest:'西南 · 房山',northeast:'东北 · 平谷',suburban:'近郊 · 市区周边'};
+const CN={mountain:'山脉',reservoir:'水库',canyon:'峡谷',grassland:'草甸',forest:'森林',greatWall:'长城',village:'古村',cave:'溶洞'};
+const DN={leisurely:'休闲',beginner:'初级',intermediate:'中级',advanced:'高级',expert:'挑战'};
+const DC={leisurely:'#22c55e',beginner:'#3b82f6',intermediate:'#f59e0b',advanced:'#a855f7',expert:'#374151'};
+const SN={spring:'春',summer:'夏',autumn:'秋',winter:'冬'};
+const AM={hiking:'徒步',camping:'露营',walking:'散步',photography:'摄影',climbing:'攀岩',fishing:'垂钓',swimming:'游泳',cycling:'骑行'};
+const CATCOLORS={mountain:'#667eea',reservoir:'#2193b0',canyon:'#f5576c',grassland:'#56ab2f',forest:'#11998e',greatWall:'#fc4a1a',village:'#e65c00',cave:'#4b5563'};
+
+let SPOTS=[],FSPOTS=[],map=null,markers=[],actZone='',actCat='';
+
+async function init(){
+  try{
+    const r=await fetch('data.json?t='+Date.now());
+    SPOTS=await r.json();
+    const us=JSON.parse(localStorage.getItem('bj_v15')||'{}');
+    SPOTS.forEach(s=>{if(us[s.id]){s.visited=!!us[s.id].visited;s.wishlist=!!us[s.id].wishlist;}});
+    FSPOTS=[...SPOTS];
+    document.getElementById('destLoading').style.display='none';
+    document.getElementById('destGrid').classList.remove('hidden');
+    renderCards();
+    renderCatPills();
+    initMap();
+  }catch(e){document.getElementById('destLoading').innerHTML='<div style="color:#c53030">加载失败，请刷新</div>';}
+}
+
+function save(){const st={};SPOTS.forEach(s=>{st[s.id]={visited:!!s.visited,wishlist:!!s.wishlist};});localStorage.setItem('bj_v15',JSON.stringify(st));}
+function tv(id,e){e&&e.stopPropagation();const s=SPOTS.find(x=>x.id===id);if(s){s.visited=!s.visited;save();renderCards();updateMarkers();}}
+function tw(id,e){e&&e.stopPropagation();const s=SPOTS.find(x=>x.id===id);if(s){s.wishlist=!s.wishlist;save();renderCards();}}
+
+function filterByZone(z){
+  actZone=actZone===z?'':z;
+  document.querySelectorAll('.map-zone').forEach(el=>el.classList.toggle('active',el.id==='zone-'+z&&actZone));
+  applyF();
+  if(map&&actZone){const coords=SPOTS.filter(s=>s.zone===z&&s.coordinates).map(s=>s.coordinates);if(coords.length)map.fitBounds(coords,{padding:[50,50]});}
+}
+function clearZoneFilter(){actZone='';document.querySelectorAll('.map-zone').forEach(el=>el.classList.remove('active'));applyF();}
+function filterByCat(c){actCat=actCat===c?'':c;document.querySelectorAll('.cat-pill').forEach(el=>el.classList.toggle('active',el.dataset.cat===actCat&&actCat));applyF();}
+function applyF(){
+  FSPOTS=SPOTS.filter(s=>{if(actZone&&s.zone!==actZone)return false;if(actCat&&!s.categories.includes(actCat))return false;return true;});
+  renderCards();updateMarkers();
+}
+
+function img(id,sfx){return'https://picsum.photos/seed/'+id+(sfx||'')+'/600/400';}
+
+function renderCards(){
+  const g=document.getElementById('destGrid');
+  g.innerHTML=FSPOTS.map(spot=>{
+    const dColor=DC[spot.difficulty],cat=spot.categories[0],catName=CN[cat]||'景点';
+    return`<div class="card" onclick="openD('${spot.id}')"><div class="card-img"><img src="${img(spot.id)}" alt="${spot.name}" loading="lazy"><div class="card-img-tags"><span class="card-img-tag" style="background:${dColor}">${DN[spot.difficulty]}</span><span class="card-img-tag">${catName}</span></div><div class="card-actions-top"><button class="act-btn" onclick="tv('${spot.id}',event)">${spot.visited?'✅':'☑️'}</button><button class="act-btn" onclick="tw('${spot.id}',event)">${spot.wishlist?'⭐':'☆'}</button></div></div><div class="card-body"><div class="card-title">${spot.name}</div><div class="card-meta">${spot.zoneName} · 海拔${spot.elevation}m · 距京${spot.distance}km</div><div class="card-desc">${spot.description}</div><div class="card-footer"><span class="card-diff" style="background:${dColor}15;color:${dColor}">${DN[spot.difficulty]}</span><span class="card-dist">${(spot.seasons||[]).map(s=>SN[s]).join(' · ')}</span></div></div></div>`;
+  }).join('');
+}
+
+function renderCatPills(){
+  const cats=[...new Set(SPOTS.flatMap(s=>s.categories))];
+  document.getElementById('catPills').innerHTML=cats.map(c=>`<button class="cat-pill" data-cat="${c}" onclick="filterByCat('${c}')">${CN[c]||c}</button>`).join('');
+}
+
+function initMap(){
+  map=L.map('realMap',{zoomControl:false}).setView([40.35,116.5],9);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'&copy;OpenStreetMap & CartoDB',maxZoom:18}).addTo(map);
+  updateMarkers();
+}
+
+function updateMarkers(){
+  if(!map)return;
+  markers.forEach(m=>map.removeLayer(m));markers=[];
+  FSPOTS.forEach(spot=>{
+    if(!spot.coordinates)return;
+    const cat=spot.categories[0],col=CATCOLORS[cat]||'#666';
+    const icon=L.divIcon({html:`<div style="width:28px;height:28px;border-radius:50%;background:${col};border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:bold;">${spot.elevation>1000?'山':spot.categories.includes('reservoir')?'水':'景'}</div>`,className:'',iconSize:[28,28]});
+    const m=L.marker(spot.coordinates,{icon}).addTo(map);
+    m.bindPopup(`<div class="popup-card"><div class="popup-title">${spot.name}</div><div class="popup-meta">${spot.zoneName} · ${DN[spot.difficulty]}</div><a class="popup-link" onclick="openD('${spot.id}')">查看攻略 →</a></div>`);
+    m.on('click',()=>openD(spot.id));
+    markers.push(m);
+  });
+}
+
+function openD(id){
+  const spot=SPOTS.find(s=>s.id===id);if(!spot)return;
+  const g=spot.guide||{};
+  let html=`<div class="detail-header"><img src="${img(spot.id,'-d')}" alt="${spot.name}"><button class="detail-close" onclick="closeD()">✕</button><div class="detail-header-content"><h2>${spot.name}</h2><div>${spot.zoneName} · ${spot.elevation}m · 距京${spot.distance}km</div></div></div><div class="detail-body"><div class="action-row"><button class="${spot.visited?'on':''}" onclick="tv('${spot.id}');refD()">${spot.visited?'✅ 已打卡':'☑️ 标记打卡'}</button><button class="${spot.wishlist?'wish-on':''}" onclick="tw('${spot.id}');refD()">${spot.wishlist?'⭐ 已收藏':'☆ 加入心愿'}</button></div><div class="detail-tabs"><div class="detail-tab active" onclick="swT(this,'t1')">概览</div><div class="detail-tab" onclick="swT(this,'t2')">交通</div><div class="detail-tab" onclick="swT(this,'t3')">时间</div><div class="detail-tab" onclick="swT(this,'t4')">费用</div><div class="detail-tab" onclick="swT(this,'t5')">装备</div><div class="detail-tab" onclick="swT(this,'t6')">贴士</div></div><div id="t1" class="detail-section active"><p style="font-size:0.9rem;color:var(--text-secondary);line-height:1.7;margin-bottom:1rem">${spot.description}</p><div class="info-grid"><div class="info-cell"><div class="info-cell-label">海拔</div><div class="info-cell-value">${spot.elevation}m</div></div><div class="info-cell"><div class="info-cell-label">距离</div><div class="info-cell-value">${spot.distance}km</div></div><div class="info-cell"><div class="info-cell-label">难度</div><div class="info-cell-value" style="color:${DC[spot.difficulty]}">${DN[spot.difficulty]}</div></div><div class="info-cell"><div class="info-cell-label">类型</div><div class="info-cell-value">${spot.categories.map(c=>CN[c]).join('、')}</div></div></div>${(spot.highlights||[]).length?`<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1rem">${spot.highlights.map(h=>`<span style="padding:0.25rem 0.6rem;background:#f0fdf4;color:#166534;border-radius:50px;font-size:0.8rem">${h}</span>`).join('')}</div>`:''}${g.bestSeasons&&g.bestSeasons.primary?`<div class="info-block"><div class="info-block-title">最佳季节</div><div class="info-block-text" style="color:var(--primary);font-weight:600">${g.bestSeasons.primary}</div>${g.bestSeasons.avoid?`<div style="font-size:0.8rem;color:#c53030;margin-top:0.2rem">避免：${g.bestSeasons.avoid}</div>`:''}</div>`:''}${g.nearby&&g.nearby.combineWith?`<div class="info-block" style="border-left-color:#f59e0b"><div class="info-block-title">🎯 串联推荐</div><div class="info-block-text">${g.nearby.combineWith}</div></div>`:''}</div><div id="t2" class="detail-section">${(g.transport||[]).length?g.transport.map((t,i)=>`<div class="info-block" style="border-left-color:${i===0?'#3b82f6':'#22c55e'}"><div class="info-block-title">${t.mode}${i===0?'<span style="font-size:0.7rem;background:#dbeafe;color:#1e40af;padding:0.1rem 0.4rem;border-radius:50px;margin-left:0.4rem">推荐</span>':''}</div><div class="info-block-text">${t.route}</div><div class="info-block-tips">💡 ${t.tips}</div></div>`).join(''):'<p style="color:var(--text-muted)">暂无交通信息</p>'}</div><div id="t3" class="detail-section">${g.duration&&g.duration.suggested?`<div class="info-grid"><div class="info-cell"><div class="info-cell-label">建议时长</div><div class="info-cell-value">${g.duration.suggested}</div></div><div class="info-cell"><div class="info-cell-label">过夜</div><div class="info-cell-value">${g.duration.overnight?'建议过夜':'当日往返'}</div></div></div>${g.duration.overnightReason?`<div class="info-block"><div class="info-block-text">${g.duration.overnightReason}</div></div>`:''}${g.duration.bestTimeOfDay?`<div class="info-block" style="border-left-color:#f59e0b"><div class="info-block-title">最佳出发时间</div><div class="info-block-text">${g.duration.bestTimeOfDay}</div></div>`:''}`:''}</div><div id="t4" class="detail-section"><div class="info-grid">${g.cost&&g.cost.ticket?`<div class="info-cell"><div class="info-cell-label">门票</div><div class="info-cell-value">${g.cost.ticket}</div></div>`:''}${g.cost&&g.cost.parking?`<div class="info-cell"><div class="info-cell-label">停车</div><div class="info-cell-value">${g.cost.parking}</div></div>`:''}</div>${g.cost&&g.cost.other?`<div class="info-block"><div class="info-block-title">其他费用</div><div class="info-block-text">${g.cost.other}</div></div>`:''}</div><div id="t5" class="detail-section">${(g.essentials&&g.essentials.gear||[]).length?`<div style="margin-bottom:1rem"><div style="font-weight:600;font-size:0.9rem;margin-bottom:0.5rem">推荐装备</div><div style="display:flex;flex-direction:column;gap:0.4rem">${g.essentials.gear.map(item=>`<div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.8rem;background:#f0fdf4;border-radius:var(--radius-sm);font-size:0.85rem"><span style="color:var(--primary-light)">✓</span>${item}</div>`).join('')}</div></div>`:''}${g.essentials&&g.essentials.food?`<div class="info-block" style="border-left-color:#f97316"><div class="info-block-title">餐饮建议</div><div class="info-block-text">${g.essentials.food}</div></div>`:''}${(g.essentials&&g.essentials.warnings||[]).length?`<div class="warn-box"><div class="warn-title">⚠️ 安全提醒</div>${g.essentials.warnings.map(w=>`<div class="warn-item">• ${w}</div>`).join('')}</div>`:''}</div><div id="t6" class="detail-section"><div class="info-grid"><div class="info-cell"><div class="info-cell-label">适合活动</div><div class="info-cell-value">${(spot.activities||[]).map(a=>AM[a]||a).join('、')}</div></div><div class="info-cell"><div class="info-cell-label">适宜季节</div><div class="info-cell-value">${(spot.seasons||[]).map(s=>SN[s]).join('、')}</div></div></div><div style="margin-top:0.75rem;padding:0.75rem;background:#eff6ff;border-radius:var(--radius-sm)"><div style="font-weight:600;color:#1e40af;font-size:0.85rem;margin-bottom:0.3rem">💡 游玩小贴士</div><p style="font-size:0.85rem;color:#334155;line-height:1.5">${spot.name}位于${spot.zoneName}，海拔${spot.elevation}米，${DN[spot.difficulty]}难度。建议提前查看天气，准备适合装备。</p></div></div></div>`;
+  document.getElementById('dCo').innerHTML=html;
+  document.getElementById('dOv').classList.add('open');
+  document.getElementById('dPa').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeD(){document.getElementById('dOv').classList.remove('open');document.getElementById('dPa').classList.remove('open');document.body.style.overflow='';}
+function refD(){const h2=document.querySelector('.detail-header-content h2');if(h2){const s=SPOTS.find(x=>x.name===h2.textContent);if(s)openD(s.id);}}
+function swT(el,tid){document.querySelectorAll('.detail-tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.detail-section').forEach(s=>s.classList.remove('active'));el.classList.add('active');document.getElementById(tid).classList.add('active');}
+
+// Nav scroll effect
+window.addEventListener('scroll',()=>{document.getElementById('mainNav').classList.toggle('scrolled',window.scrollY>100);});
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeD();});
+init();
+</script>
+</body>
+</html>
